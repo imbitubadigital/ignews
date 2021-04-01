@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import {Readable} from 'stream'
 import Stripe from 'stripe';
 import { stripe } from '../../services/stripe';
+import { saveSubscription } from './_lib/manageSubscription';
 
 async function buffer(readable: Readable){
   const chucks = [];
@@ -22,11 +23,14 @@ export const config = {
 }
 
 const relevantEvents = new Set([
-  'checkout.session.completed'
+  'checkout.session.completed',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
 ])
 
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
+
   if(req.method === 'POST'){
     const buf = await buffer(req)
     const secret = req.headers['stripe-signature']
@@ -39,14 +43,45 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
       event = stripe.webhooks.constructEvent(buf, secret, process.env.STRIPE_WEBHOOKS_SECRET)
 
     } catch (err) {
+
       return res.status(400).send(`Webhook error: ${err.message}`)
     }
 
     const {type} = event;
 
+    console.log('antes do  type', type)
     if(relevantEvents.has(type)){
-      //fazer algo
-      console.log('evento recebido', event)
+      console.log('type', type)
+      try {
+      switch (type) {
+        case 'customer.subscription.update':
+        case 'customer.subscription.deleted':
+
+        const subscription = event.data.object as Stripe.Subscription
+          await saveSubscription(
+            subscription.id,
+            subscription.customer.toString(),
+            false
+          )
+
+          break
+        case 'checkout.session.completed':
+          console.log('aqui cacete');
+
+        const checkoutSession = event.data.object as Stripe.Checkout.Session
+          await saveSubscription(
+            checkoutSession.subscription.toString(),
+            checkoutSession.customer.toString(),
+            true,
+          )
+          break
+          default:
+            throw new Error('Unhandled event.')
+      }
+    } catch (err){
+      console.log('caiu no erro')
+      return res.json({ error: 'Webhook handler failed'})
+    }
     }
 
     return res.json({received: true})
