@@ -56,25 +56,3 @@ export const getStaticProps: GetStaticProps = async () => {
   }
 }
 
-/* getServerSideProps: chama toda vez que carrega a pagina */
-// export const getServerSideProps: GetServerSideProps = async () => {
-//   const price = await stripe.prices.retrieve('price_1IZyU2DbumPO1jeQgC5mCp3A', {
-//     expand: ['product']
-//   })
-
-//   console.log('price', price);
-
-//   const product = {
-//     priceId: price.id,
-//     amount: new Intl.NumberFormat('en-Us', {
-//       style: 'currency',
-//       currency: "USD"
-//     }).format(price.unit_amount / 100)
-//   }
-
-//   return {
-//     props: {
-//       product
-//     }
-//   }
-// }
